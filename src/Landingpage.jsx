@@ -2,7 +2,7 @@
 import './App.css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Bubble from './bubble';  
+import Bubble from './bubble';
 import AboutContent from './Aboutcontent';
 
 function Landingpage({setRole}) {
@@ -41,8 +41,8 @@ function Landingpage({setRole}) {
           <p onClick={() => scrollToSection('home')}>Home</p>
           <p onClick={() => scrollToSection('about')}>About</p>
           <p onClick={() => scrollToSection('footer')}>Contact</p>
-          <p onClick={() => setShowLogin(true)}>Login</p>
-          <p>Signup</p>
+          <p onClick={() => navigate('/login')}>Login</p>
+          <p onClick={() => navigate('/register')}>Signup</p>
         </div>
       </div>
 

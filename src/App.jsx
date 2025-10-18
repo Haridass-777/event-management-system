@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import Landingpage from './Landingpage';
 import Dashboard from './Dashboard/Dashboard';
-import { createBrowserRouter, RouterProvider, useNavigate } from 'react-router-dom';
+import Login from './Login';
+import Register from './Register';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 function App() {
   const [role, setRole] = useState(localStorage.getItem('role') || null);
@@ -17,6 +19,14 @@ function App() {
     {
       path: '/',
       element: <Landingpage setRole={setRole} />,
+    },
+    {
+      path: '/login',
+      element: <Login />,
+    },
+    {
+      path: '/register',
+      element: <Register />,
     },
     {
       path: '/dashboard',
