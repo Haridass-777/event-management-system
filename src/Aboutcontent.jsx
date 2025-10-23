@@ -7,7 +7,7 @@ function AboutContent() {
 
   // Fetch data from backend
   useEffect(() => {
-    fetch("http://localhost:5000/api/clubs")
+    fetch("http://localhost:5000/clubs")
       .then((res) => res.json())
       .then((data) => setClubs(data))
       .catch((err) => console.error("Error fetching clubs:", err));

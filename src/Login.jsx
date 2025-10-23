@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import { toast } from 'react-toastify';
 import './App.css';
 
-function Login() {
+function Login({ setRole: setAppRole }) {
   const [role, setRole] = useState('Student');
   const [emailOrId, setEmailOrId] = useState('');
   const [password, setPassword] = useState('');
@@ -14,21 +16,31 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    console.log('Login attempt:', { role, emailOrId, password, rememberMe });
-    setTimeout(() => {
-      localStorage.setItem('role', role.toLowerCase());
+
+   
+
+     
+      const roleValue = role === 'Club Head' ? 'clubhead' : role.toLowerCase();
+
+      setAppRole(roleValue);
+      localStorage.setItem('role', roleValue);
+      
+
+      toast.success('Login successful!');
       navigate('/dashboard');
-      setIsLoading(false);
-    }, 1000);
-  };
+    } 
+    
+
 
   return (
     <div className="login-page">
       <div className="login-container">
+
         <div className="login-left">
           <img src="/assets/home.jpg" alt="College Campus" className="campus-image" />
           <div className="logo-watermark"><img src="/assets/logo1.png" alt="College Logo" /></div>
         </div>
+
         <div className="login-right">
           <div className="login-form-container">
             <h1 className="login-title">Login to Your Account<span style={{fontSize: '14px', opacity: '0.8', display: 'block', marginTop: '8px'}}>Access your dashboard securely</span></h1>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import './App.css';
 
 function Register() {
@@ -84,9 +85,8 @@ function Register() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateStep()) {
-      // Placeholder for registration logic
-      console.log('Registration attempt:', { role, ...formData });
-      // For now, navigate to login
+      // Simulate successful registration
+      toast.success('Registration successful! Please login.');
       navigate('/login');
     }
   };

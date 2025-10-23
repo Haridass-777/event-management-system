@@ -22,7 +22,7 @@ function App() {
     },
     {
       path: '/login',
-      element: <Login />,
+      element: <Login setRole={setRole} />,
     },
     {
       path: '/register',
@@ -31,6 +31,10 @@ function App() {
     {
       path: '/dashboard',
       element: <Dashboard role={role} />,
+    },
+    {
+      path: '/admin',
+      element: <Dashboard role="admin" />,
     },
   ]);
 
