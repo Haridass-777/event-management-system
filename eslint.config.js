@@ -27,7 +27,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['cems/server/**/*.{js}'],
+    files: ['backend/**/*.{js}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.node,
