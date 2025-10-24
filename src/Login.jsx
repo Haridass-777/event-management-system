@@ -66,7 +66,6 @@ function Login({ setRole: setAppRole }) {
                 </div>
               </div>
               <div className="form-options">
-                <label className="checkbox-label"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />Remember Me</label>
                 <a href="#" className="forgot-password">Forgot Password?</a>
               </div>
               <button type="submit" className="login-btn" disabled={isLoading}>{isLoading ? 'Logging in...' : 'Login'}</button>
