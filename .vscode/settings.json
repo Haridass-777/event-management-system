@@ -11,6 +11,22 @@
             "username": "btechb22502",
             "password": "jujeasut",
             "connectionTimeout": 30
+        },
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "dbproject",
+            "database": "event_management",
+            "username": "root",
+            "password": "Hari@4455",
+            "connectionTimeout": 30
         }
     ]
 }
