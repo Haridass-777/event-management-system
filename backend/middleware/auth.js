@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 
-// Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -14,13 +13,12 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    const userQuery = `SELECT id, email, role, full_name, club_id FROM users WHERE id = ?`;
+    const userQuery = 'SELECT id, email, role, full_name, club_id FROM users WHERE id = ?';
 
-// Verify token (checks signature + gets typed payload)
-const decoded = jwt.verify(token, process.env.JWT_SECRET) ;
-// Now TypeScript knows decoded has an 'id' property
-// @ts-ignore
-const userResult = await query(userQuery, [decoded.id]);
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userResult = await query(userQuery, [decoded.id]);
+
     if (userResult.rows.length === 0) {
       return res.status(401).json({
         success: false,
@@ -90,7 +88,7 @@ const requireClubHead = (req, res, next) => {
 
   // For club-specific operations, check if user is head of that club
   if (req.params.clubId) {
-    const clubId = parseInt(req.params.clubId);
+    const clubId = parseInt(req.params.clubId, 10);
     if (req.user.club_id !== clubId) {
       return res.status(403).json({
         success: false,
@@ -102,8 +100,4 @@ const requireClubHead = (req, res, next) => {
   next();
 };
 
-module.exports = {
-  authenticateToken,
-  requireRole,
-  requireClubHead
-};
+module.exports = { authenticateToken, requireRole, requireClubHead };

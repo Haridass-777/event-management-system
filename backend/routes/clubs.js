@@ -26,8 +26,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const clubQuery = 'SELECT * FROM clubs WHERE id = $1';
-    const eventsQuery = 'SELECT * FROM events WHERE club_id = $1 ORDER BY event_date';
+    const clubQuery = 'SELECT * FROM clubs WHERE id = ?';
+    const eventsQuery = 'SELECT * FROM events WHERE club_id = ? ORDER BY event_date';
 
     const [clubResult, eventsResult] = await Promise.all([
       query(clubQuery, [id]),
@@ -64,7 +64,7 @@ router.post('/:id/join', async (req, res) => {
     const userId = req.user.id;
 
     // Check if club exists
-    const clubCheck = await query('SELECT id FROM clubs WHERE id = $1', [clubId]);
+    const clubCheck = await query('SELECT id FROM clubs WHERE id = ?', [clubId]);
     if (clubCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -74,7 +74,7 @@ router.post('/:id/join', async (req, res) => {
 
     // Check if already a member
     const membershipCheck = await query(
-      'SELECT id FROM club_memberships WHERE user_id = $1 AND club_id = $2',
+      'SELECT id FROM club_memberships WHERE user_id = ? AND club_id = ?',
       [userId, clubId]
     );
 
@@ -87,7 +87,7 @@ router.post('/:id/join', async (req, res) => {
 
     // Add membership
     await query(
-      'INSERT INTO club_memberships (user_id, club_id) VALUES ($1, $2)',
+      'INSERT INTO club_memberships (user_id, club_id) VALUES (?, ?)',
       [userId, clubId]
     );
 
@@ -112,11 +112,11 @@ router.post('/:id/leave', async (req, res) => {
 
     // Remove membership
     const result = await query(
-      'DELETE FROM club_memberships WHERE user_id = $1 AND club_id = $2',
+      'DELETE FROM club_memberships WHERE user_id = ? AND club_id = ?',
       [userId, clubId]
     );
 
-    if (result.rowCount === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Not a member of this club'
@@ -143,7 +143,7 @@ router.get('/my/memberships', async (req, res) => {
       SELECT cm.*, c.title, c.description, c.image_url
       FROM club_memberships cm
       JOIN clubs c ON cm.club_id = c.id
-      WHERE cm.user_id = $1 AND cm.status = 'active'
+      WHERE cm.user_id = ? AND cm.status = 'active'
       ORDER BY cm.joined_at DESC
     `;
 

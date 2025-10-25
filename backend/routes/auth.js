@@ -27,7 +27,7 @@ router.post('/register', [
     const { email, password, fullName, role, registerNumber, staffId, department, year, contactNumber } = req.body;
 
     // Check if user already exists
-    const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUser = await query('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
         success: false,
@@ -42,14 +42,16 @@ router.post('/register', [
     // Insert new user
     const insertQuery = `
       INSERT INTO users (email, password_hash, role, full_name, register_number, staff_id, department, year, contact_number)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, email, role, full_name
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [email, passwordHash, role, fullName, registerNumber, staffId, department, year, contactNumber];
     const result = await query(insertQuery, values);
 
-    const user = result.rows[0];
+    // Get the inserted user
+    const userQuery = 'SELECT id, email, role, full_name FROM users WHERE email = ?';
+    const userResult = await query(userQuery, [email]);
+    const user = userResult.rows[0];
 
     // Generate JWT token
     const token = jwt.sign(
@@ -92,7 +94,7 @@ router.post('/login', [
     const { email, password } = req.body;
 
     // Find user
-    const userQuery = 'SELECT * FROM users WHERE email = $1';
+    const userQuery = 'SELECT * FROM users WHERE email = ?';
     const userResult = await query(userQuery, [email]);
 
     if (userResult.rows.length === 0) {

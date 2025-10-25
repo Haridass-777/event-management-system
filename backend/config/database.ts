@@ -1,7 +1,20 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+import mysql from 'mysql2/promise';
+import * as dotenv from 'dotenv';
 
-const config = {
+dotenv.config();
+
+interface DatabaseConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  waitForConnections: boolean;
+  connectionLimit: number;
+  queueLimit: number;
+}
+
+const config: DatabaseConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3308', 10),
   database: process.env.DB_NAME || 'event_management',
@@ -29,7 +42,10 @@ const testConnection = async () => {
 testConnection();
 
 // Query helper function
-const query = async (sql, params = []) => {
+const query = async <T = any>(
+  sql: string,
+  params?: any[]
+): Promise<{ rows: T[]; affectedRows?: number }> => {
   const start = Date.now();
   try {
     const [result] = await pool.execute(sql, params);
@@ -37,7 +53,7 @@ const query = async (sql, params = []) => {
     if (Array.isArray(result)) {
       // SELECT query
       console.log('Executed query', { sql, duration, rows: result.length });
-      return { rows: result };
+      return { rows: result as T[] };
     } else {
       // INSERT/UPDATE/DELETE query
       console.log('Executed query', { sql, duration, affectedRows: result.affectedRows });
@@ -49,4 +65,5 @@ const query = async (sql, params = []) => {
   }
 };
 
-module.exports = { pool, query };
+export default pool;
+export { query };

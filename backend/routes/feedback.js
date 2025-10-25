@@ -5,7 +5,7 @@ const { query } = require('../config/database.js');
 const { authenticateToken, requireRole } = require('../middleware/auth.js');
 const jwt = require('jsonwebtoken');
 const process = require('process');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const router = express.Router();
 
 // Submit feedback for an event
@@ -30,7 +30,7 @@ router.post('/', [
     const userId = req.user.id;
 
     // Check if event exists
-    const eventCheck = await query('SELECT id FROM events WHERE id = $1', [eventId]);
+    const eventCheck = await query('SELECT id FROM events WHERE id = ?', [eventId]);
     if (eventCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -40,7 +40,7 @@ router.post('/', [
 
     // Check if user is registered for the event
     const registrationCheck = await query(
-      'SELECT id FROM event_registrations WHERE user_id = $1 AND event_id = $2 AND status = $3',
+      'SELECT id FROM event_registrations WHERE user_id = ? AND event_id = ? AND status = ?',
       [userId, eventId, 'registered']
     );
 
@@ -53,7 +53,7 @@ router.post('/', [
 
     // Check if feedback already exists
     const feedbackCheck = await query(
-      'SELECT id FROM feedback WHERE user_id = $1 AND event_id = $2',
+      'SELECT id FROM feedback WHERE user_id = ? AND event_id = ?',
       [userId, eventId]
     );
 
@@ -67,16 +67,19 @@ router.post('/', [
     // Insert feedback
     const insertQuery = `
       INSERT INTO feedback (event_id, user_id, rating, comments)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
+      VALUES (?, ?, ?, ?)
     `;
 
     const result = await query(insertQuery, [eventId, userId, rating, comments]);
 
+    // Get the inserted feedback
+    const selectQuery = 'SELECT * FROM feedback WHERE id = LAST_INSERT_ID()';
+    const feedbackResult = await query(selectQuery);
+
     res.status(201).json({
       success: true,
       message: 'Feedback submitted successfully',
-      feedback: result.rows[0]
+      feedback: feedbackResult.rows[0]
     });
 
   } catch (error) {
@@ -96,7 +99,7 @@ router.get('/event/:eventId', async (req, res) => {
       SELECT f.*, u.full_name as user_name
       FROM feedback f
       JOIN users u ON f.user_id = u.id
-      WHERE f.event_id = $1
+      WHERE f.event_id = ?
       ORDER BY f.submitted_at DESC
     `;
 
@@ -136,7 +139,7 @@ router.get('/my', authenticateToken, async (req, res) => {
       FROM feedback f
       JOIN events e ON f.event_id = e.id
       JOIN clubs c ON e.club_id = c.id
-      WHERE f.user_id = $1
+      WHERE f.user_id = ?
       ORDER BY f.submitted_at DESC
     `;
 
@@ -179,7 +182,7 @@ router.put('/:id', [
 
     // Check if feedback exists and belongs to user
     const feedbackCheck = await query(
-      'SELECT id, submitted_at FROM feedback WHERE id = $1 AND user_id = $2',
+      'SELECT id, submitted_at FROM feedback WHERE id = ? AND user_id = ?',
       [id, userId]
     );
 
@@ -205,17 +208,20 @@ router.put('/:id', [
     // Update feedback
     const updateQuery = `
       UPDATE feedback
-      SET rating = COALESCE($1, rating), comments = COALESCE($2, comments)
-      WHERE id = $3 AND user_id = $4
-      RETURNING *
+      SET rating = COALESCE(?, rating), comments = COALESCE(?, comments)
+      WHERE id = ? AND user_id = ?
     `;
 
     const result = await query(updateQuery, [rating, comments, id, userId]);
 
+    // Get the updated feedback
+    const selectQuery = 'SELECT * FROM feedback WHERE id = ?';
+    const updatedResult = await query(selectQuery, [id]);
+
     res.json({
       success: true,
       message: 'Feedback updated successfully',
-      feedback: result.rows[0]
+      feedback: updatedResult.rows[0]
     });
 
   } catch (error) {
@@ -245,8 +251,8 @@ router.post('/register', [
     }
     const { email, password, fullName, role } = req.body;
     // Check if user already exists
-    const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {   
+    const existingUser = await query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existingUser.rows.length > 0) {
       return res.status(409).json({
         success: false,
         message: 'User with this email already exists'
@@ -254,12 +260,11 @@ router.post('/register', [
     }
     // Hash password
     const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);   
+    const passwordHash = await bcrypt.hash(password, saltRounds);
     // Insert new user
     const insertQuery = `
       INSERT INTO users (email, password_hash, role, full_name)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, email, role, full_name  
+      VALUES (?, ?, ?, ?)
     `;
     const values = [email, passwordHash, role, fullName];
     const result = await query(insertQuery, values);

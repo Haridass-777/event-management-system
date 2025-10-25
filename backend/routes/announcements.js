@@ -2,7 +2,8 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const { query } = require('../config/database.js');
-const { authenticateToken, requireRole } = require('../middleware/auth.js');
+const { authenticateToken } = require('../middleware/auth');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -68,7 +69,7 @@ router.get('/:id', async (req, res) => {
       FROM announcements a
       JOIN clubs c ON a.club_id = c.id
       JOIN users u ON a.created_by = u.id
-      WHERE a.id = $1
+      WHERE a.id = ?
     `;
 
     const result = await query(announcementQuery, [id]);
@@ -101,7 +102,7 @@ router.get('/club/:clubId', async (req, res) => {
       SELECT a.*, u.full_name as creator_name
       FROM announcements a
       JOIN users u ON a.created_by = u.id
-      WHERE a.club_id = $1
+      WHERE a.club_id = ?
       ORDER BY a.created_at DESC
     `;
 
@@ -109,7 +110,7 @@ router.get('/club/:clubId', async (req, res) => {
 
     res.json({
       success: true,
-      announcements: result.rows
+      announcements: result
     });
   } catch (error) {
     console.error('Get club announcements error:', error);
@@ -137,17 +138,20 @@ router.post('/', authenticateToken, requireRole('clubhead'), upload.single('post
 
     const insertQuery = `
       INSERT INTO announcements (title, description, announcement_date, club_id, poster_url, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const values = [title, description, date, clubId, posterUrl, userId];
     const result = await query(insertQuery, values);
 
+    // Get the inserted announcement
+    const selectQuery = 'SELECT * FROM announcements WHERE id = LAST_INSERT_ID()';
+    const announcementResult = await query(selectQuery);
+
     res.status(201).json({
       success: true,
       message: 'Announcement created successfully',
-      announcement: result.rows[0]
+      announcement: announcementResult
     });
   } catch (error) {
     console.error('Create announcement error:', error);
@@ -167,7 +171,7 @@ router.put('/:id', authenticateToken, requireRole('clubhead'), upload.single('po
     const posterUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     // Check if announcement exists and user owns it
-    const checkQuery = 'SELECT club_id FROM announcements WHERE id = $1 AND created_by = $2';
+    const checkQuery = 'SELECT club_id FROM announcements WHERE id = ? AND created_by = ?';
     const checkResult = await query(checkQuery, [id, userId]);
 
     if (checkResult.rows.length === 0) {
@@ -179,18 +183,21 @@ router.put('/:id', authenticateToken, requireRole('clubhead'), upload.single('po
 
     const updateQuery = `
       UPDATE announcements
-      SET title = $1, description = $2, announcement_date = $3, poster_url = COALESCE($4, poster_url), updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5 AND created_by = $6
-      RETURNING *
+      SET title = ?, description = ?, announcement_date = ?, poster_url = COALESCE(?, poster_url), updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND created_by = ?
     `;
 
     const values = [title, description, date, posterUrl, id, userId];
     const result = await query(updateQuery, values);
 
+    // Get the updated announcement
+    const selectQuery = 'SELECT * FROM announcements WHERE id = ?';
+    const announcementResult = await query(selectQuery, [id]);
+
     res.json({
       success: true,
       message: 'Announcement updated successfully',
-      announcement: result.rows[0]
+      announcement: announcementResult
     });
   } catch (error) {
     console.error('Update announcement error:', error);
@@ -207,10 +214,10 @@ router.delete('/:id', authenticateToken, requireRole('clubhead'), async (req, re
     const { id } = req.params;
     const userId = req.user.id;
 
-    const deleteQuery = 'DELETE FROM announcements WHERE id = $1 AND created_by = $2 RETURNING *';
+    const deleteQuery = 'DELETE FROM announcements WHERE id = ? AND created_by = ?';
     const result = await query(deleteQuery, [id, userId]);
 
-    if (result.rowCount === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Announcement not found or not authorized'
@@ -239,24 +246,27 @@ router.put('/:id/approve', authenticateToken, requireRole('admin'), async (req, 
 
     const updateQuery = `
       UPDATE announcements
-      SET status = 'approved', approved_by = $1, feedback = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3
-      RETURNING *
+      SET status = 'approved', approved_by = ?, feedback = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
     `;
 
     const result = await query(updateQuery, [adminId, feedback, id]);
 
-    if (result.rowCount === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Announcement not found'
       });
     }
 
+    // Get the updated announcement
+    const selectQuery = 'SELECT * FROM announcements WHERE id = ?';
+    const announcementResult = await query(selectQuery, [id]);
+
     res.json({
       success: true,
       message: 'Announcement approved successfully',
-      announcement: result.rows[0]
+      announcement: announcementResult
     });
   } catch (error) {
     console.error('Approve announcement error:', error);
@@ -276,24 +286,27 @@ router.put('/:id/reject', authenticateToken, requireRole('admin'), async (req, r
 
     const updateQuery = `
       UPDATE announcements
-      SET status = 'rejected', approved_by = $1, feedback = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3
-      RETURNING *
+      SET status = 'rejected', approved_by = ?, feedback = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
     `;
 
     const result = await query(updateQuery, [adminId, feedback, id]);
 
-    if (result.rowCount === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Announcement not found'
       });
     }
 
+    // Get the updated announcement
+    const selectQuery = 'SELECT * FROM announcements WHERE id = ?';
+    const announcementResult = await query(selectQuery, [id]);
+
     res.json({
       success: true,
       message: 'Announcement rejected',
-      announcement: result.rows[0]
+      announcement: announcementResult
     });
   } catch (error) {
     console.error('Reject announcement error:', error);
