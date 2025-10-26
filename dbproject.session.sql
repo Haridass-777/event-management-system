@@ -1,14 +1,4 @@
-DROP TABLE feedback;
-DROP TABLE users;
-DROP TABLE announcements;
-
-
-DROP TABLE club_memberships;
-
-
-DROP TABLE event_registrations;
-
-DROP TABLE events;
+ 
 
 
 CREATE TABLE events (
@@ -38,8 +28,7 @@ CREATE TABLE IF NOT EXISTS club_registrations (
     FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE
 );
 
- DROP TABLE club_registrations;
- DROP TABLE event_registrations;
+ 
 
 CREATE TABLE IF NOT EXISTS event_registrations (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -95,8 +84,7 @@ INSERT INTO users (id, role, name, email, password) VALUES
 
 
 
-
-SELECT * FROM users WHERE enrollment='2023-ENG-001';
+ 
 
 
 
