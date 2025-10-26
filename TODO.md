@@ -1,8 +1,11 @@
-# TODO: Fix "announcements is not defined" error in StudentDashboard.jsx
+# TODO: Connect ClubHeadDashboard and AdminDashboard to Backend Database
 
-## Steps to Complete:
-1. Add state for announcements in StudentDashboard component. ✅
-2. Add useEffect to fetch announcements from the backend API (/api/announcements). ✅
-3. Handle loading and error states for announcements.
-4. Update the JSX to render announcements from state instead of undefined variable. ✅
-5. Test the fix by running the application and checking for errors. ✅
+- [x] Add 'announcements' table to backend/server.js
+- [x] Add POST /api/announcements endpoint in backend/server.js
+- [x] Add GET /api/announcements/:clubId endpoint in backend/server.js
+- [x] Modify UploadEventForm.jsx to accept props and submit via API
+- [x] Update ClubHeadDashboard.jsx to fetch announcements from API and remove localStorage
+- [x] Create AdminDashboard.jsx connected to backend
+- [x] Add GET /api/announcements/pending endpoint in backend/server.js
+- [x] Add PUT /api/announcements/:id endpoint in backend/server.js
+- [x] Add DELETE /api/announcements/:id endpoint in backend/server.js

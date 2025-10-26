@@ -10,16 +10,17 @@ app.use(express.json());
 // MySQL connection
 const db = mysql.createConnection({
   host: 'localhost',
+  port: 3308,
   user: 'root',
-  password: 'Hari@4455',
-  database: 'event_management'
+  password: 'P@ssw0rd',
+  database: 'event'
 });
 
 db.connect(err => {
   if (err) return console.error('DB connection error:', err);
   console.log('MySQL connected');
 
-  db.query('USE event_management', (err) => {
+  db.query('USE event', (err) => {
     if (err) return console.error('Error selecting database:', err);
 
     // Create tables
@@ -28,49 +29,89 @@ db.connect(err => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT,
-        image_url VARCHAR(255),
-        contact_email VARCHAR(255)
+        contact_email VARCHAR(255),
+        image_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_clubs_title (title)
       )`,
       `CREATE TABLE IF NOT EXISTS events (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        club_id INT,
+        club_id INT NOT NULL,
         title VARCHAR(255) NOT NULL,
         description TEXT,
-        event_date DATE,
-        registered_by VARCHAR(255),
-        FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE
+        event_date DATE NOT NULL,
+        registered_by VARCHAR(255) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE,
+        INDEX idx_events_club_id (club_id),
+        INDEX idx_events_event_date (event_date)
       )`,
       `CREATE TABLE IF NOT EXISTS club_registrations (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        club_id INT,
-        student_enrollment VARCHAR(255),
+        club_id INT NOT NULL,
+        student_enrollment VARCHAR(255) NOT NULL,
         registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE
       )`,
       `CREATE TABLE IF NOT EXISTS event_registrations (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        event_id INT,
-        student_enrollment VARCHAR(255),
+        event_id INT NOT NULL,
+        student_enrollment VARCHAR(255) NOT NULL,
         registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
       )`,
       `CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(50) PRIMARY KEY,
         role ENUM('student','clubhead','admin') NOT NULL,
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) NOT NULL UNIQUE,
-        password VARCHAR(100) NOT NULL,
-        degree VARCHAR(100),
-        department VARCHAR(100),
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        degree VARCHAR(255),
+        department VARCHAR(255),
         enrollment VARCHAR(50),
         contact VARCHAR(20),
         avatar VARCHAR(255)
+      )`,
+      `CREATE TABLE IF NOT EXISTS announcements (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        club_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        date DATE NOT NULL,
+        status ENUM('pending','approved','rejected') DEFAULT 'pending',
+        feedback TEXT,
+        submitted_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE,
+        INDEX idx_announcements_club_id (club_id),
+        INDEX idx_announcements_status (status)
       )`
     ];
 
     tables.forEach(sql => db.query(sql, err => err && console.error('Table error:', err)));
 
     console.log('All tables ready ✅');
+  });
+});
+
+// === Register ===
+app.post('/api/register', (req, res) => {
+  const { id, role, name, email, password, degree, department, enrollment, contact } = req.body;
+  if (!id || !role || !name || !email || !password)
+    return res.status(400).json({ error: 'Missing required fields' });
+
+  // Check if id or email already exists
+  const checkSql = 'SELECT id FROM users WHERE id=? OR email=?';
+  db.query(checkSql, [id, email], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length > 0) return res.status(409).json({ error: 'ID or Email already exists' });
+
+    // Insert new user
+    const insertSql = 'INSERT INTO users (id, role, name, email, password, degree, department, enrollment, contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    db.query(insertSql, [id, role, name, email, password, degree || null, department || null, enrollment || null, contact || null], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
   });
 });
 
@@ -103,6 +144,15 @@ app.get('/api/events', (req, res) => {
     FROM events e
     LEFT JOIN clubs c ON e.club_id = c.id
   `;
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// === Get approved announcements ===
+app.get('/api/announcements/approved', (req, res) => {
+  const sql = 'SELECT * FROM announcements WHERE status = "approved" ORDER BY created_at DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
@@ -192,6 +242,77 @@ app.get('/api/my-events/:enrollment', (req, res) => {
     if (results.length === 0)
       return res.status(404).json({ error: 'Student not found' }); // Must return JSON
     res.json(results[0]);
+  });
+});
+
+// === Fetch registered user (POST) ===
+app.post('/api/users/fetch', (req, res) => {
+  const { enrollment } = req.body;
+  if (!enrollment) return res.status(400).json({ error: 'Enrollment is required' });
+
+  const sql = 'SELECT * FROM users WHERE enrollment = ?';
+  db.query(sql, [enrollment], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0)
+      return res.status(404).json({ error: 'User not found' });
+    res.json(results[0]);
+  });
+});
+
+// === Create announcement ===
+app.post('/api/announcements', (req, res) => {
+  const { clubId, title, description, date, submittedBy } = req.body;
+  if (!clubId || !title || !date || !submittedBy)
+    return res.status(400).json({ error: 'Missing required fields' });
+
+  const sql = 'INSERT INTO announcements (club_id, title, description, date, submitted_by) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [clubId, title, description || null, date, submittedBy], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: result.insertId });
+  });
+});
+
+// === Get announcements for a club ===
+app.get('/api/announcements/:clubId', (req, res) => {
+  const { clubId } = req.params;
+  const sql = 'SELECT * FROM announcements WHERE club_id = ? ORDER BY created_at DESC';
+  db.query(sql, [clubId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// === Delete announcement ===
+app.delete('/api/announcements/:id', (req, res) => {
+  const { id } = req.params;
+  const sql = 'DELETE FROM announcements WHERE id = ?';
+  db.query(sql, [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Announcement not found' });
+    res.json({ success: true });
+  });
+});
+
+// === Get all pending announcements ===
+app.get('/api/announcements/pending', (req, res) => {
+  const sql = 'SELECT * FROM announcements WHERE status = "pending" ORDER BY created_at ASC';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// === Update announcement status ===
+app.put('/api/announcements/:id', (req, res) => {
+  const { id } = req.params;
+  const { status, feedback } = req.body;
+  if (!status) return res.status(400).json({ error: 'Status is required' });
+
+  const sql = 'UPDATE announcements SET status = ?, feedback = ? WHERE id = ?';
+  db.query(sql, [status, feedback || null, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Announcement not found' });
+    res.json({ success: true });
   });
 });
 
